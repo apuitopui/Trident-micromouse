@@ -7,7 +7,7 @@ Trident is a robotic project to compete in [classic size micromouse](https://www
 ![Schematic](./image/trident_sch.jpg)
 
 ## Specification
-||| 
+|Specification|Value| 
 |---|---|
 |Size(W x L x H)| 70 x 84 x 30mm |
 |Weight|About 100g|
