@@ -1,0 +1,1242 @@
+//################################################
+// �}�E�X�̑����V�X�e��
+//                                      K.Richardo
+//################################################
+#include "system.h"
+
+//************************************************
+// �ϐ��錾
+//************************************************
+int8_t MODE = 0;
+
+//===============================================
+// �V�X�e�� : ������
+//===============================================
+void System_Init( void )
+{
+	Serial_Init();
+	Tick_Init();
+	Batt_ADC_Init();
+    WallSen_Init();
+    IMU_Init();
+    MOT_Init();
+    Control_Param_Init();
+
+    LED_Disp_Batt_V( Batt_Get_V() );
+    clear_map();
+    Buzzer_Set_Enable( BUZZER_OFF );
+    LED_Set_PowerOn();
+    Machine.State.Running = false;
+
+}
+
+//===============================================
+// �V�X�e�� : ���C�����[�v
+//===============================================
+void System_Loop( void )
+{
+	MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+	// ���[�h�ύX
+	if( Enc.Pulse.l > 1000 || Enc.Pulse.r > 1000 ){
+		change_mode( +1 );
+		Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+	}
+	else if( Enc.Pulse.l < -1000 || Enc.Pulse.r < -1000 ){
+		change_mode( -1 );
+		Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+	}
+	else if( SW_Read_R() == SW_ON ){
+		HAL_Delay( SW_WAIT );
+		Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+		exec_mode();
+		Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+	}
+}
+
+//===============================================
+// ���[�h :�@���[�h�ύX�E�\��
+//===============================================
+void change_mode( int x )
+{
+    MODE += x;
+    if( MODE >= MODEMAX ) MODE = 0;
+    if( MODE < 0 ) MODE = MODEMAX - 1;
+    if( MODE == 0 ) mode0( DISP );
+    else if( MODE == 1 ) mode1( DISP );
+    else if( MODE == 2 ) mode2( DISP );
+    else if( MODE == 3 ) mode3( DISP );
+    else if( MODE == 4 ) mode4( DISP );
+    else if( MODE == 5 ) mode5( DISP );
+    else if( MODE == 6 ) mode6( DISP );
+    else if( MODE == 7 ) mode7( DISP );
+    else if( MODE == 8 ) mode8( DISP );
+    else if( MODE == 9 ) mode9( DISP );
+    else if( MODE == 10 ) mode10( DISP );
+    else if( MODE == 11 ) mode11( DISP );
+    else if( MODE == 12 ) mode12( DISP );
+    else if( MODE == 13 ) mode13( DISP );
+    else if( MODE == 14 ) mode14( DISP );
+    else if( MODE == 15 ) mode15( DISP );
+}
+
+//===============================================
+// ���[�h :�@���[�h���s
+//===============================================
+void exec_mode( void )
+{
+    if( MODE == 0 ) mode0( EXEC );
+    else if( MODE == 1 ) mode1( EXEC );
+    else if( MODE == 2 ) mode2( EXEC );
+    else if( MODE == 3 ) mode3( EXEC );
+    else if( MODE == 4 ) mode4( EXEC );
+    else if( MODE == 5 ) mode5( EXEC );
+    else if( MODE == 6 ) mode6( EXEC );
+    else if( MODE == 7 ) mode7( EXEC );
+    else if( MODE == 8 ) mode8( EXEC );
+    else if( MODE == 9 ) mode9( EXEC );
+    else if( MODE == 10 ) mode10( EXEC );
+    else if( MODE == 11 ) mode11( EXEC );
+    else if( MODE == 12 ) mode12( EXEC );
+    else if( MODE == 13 ) mode13( EXEC );
+    else if( MODE == 14 ) mode14( EXEC );
+    else if( MODE == 15 ) mode15( EXEC );
+}
+
+//===============================================
+// Mode0 : �Z���T���̒l��\�����j���[
+// 	submode:
+// 		1: WallSen
+// 		2: IMU Acc
+// 		3: IMU Gyro
+// 		4: IMU Angle
+//		5: Encoder Pulse Speed
+//		6: Odometry
+//===============================================
+void mode0( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	while( 1 ){
+		int submode = Select_Number( 1, 7 );
+		if( submode == -1 ){
+			break;
+		}else{
+			IMU_Calibrate();
+			LED_Set_Confirm();
+			while( 1 ){
+
+				switch( submode ){
+					//---------------------------------------------
+					//
+					case 1:
+						printf("WallSen: FL:%4d, L:%4d, R:%4d, FR:%4d\r\n",
+								WallSen.Value[FL], WallSen.Value[L], WallSen.Value[R], WallSen.Value[FR]);
+						break;
+					//---------------------------------------------
+					//
+					case 2:
+						printf("IMU Acc: X:%3.2f, Y:%3.f, Z:%3.2f\r\n",
+								IMU.Acc.x, IMU.Acc.y, IMU.Acc.z);
+						break;
+					//---------------------------------------------
+					//
+					case 3:
+						printf("IMU Gyro: X:%3.2f, Y:%3.2f, Z:%3.2f\r\n",
+								IMU.Gyro.x, IMU.Gyro.y, IMU.Gyro.z);
+						break;
+					//---------------------------------------------
+					//
+					case 4:
+						printf("IMU Angle: X:%3.2f, Y:%3.2f, Z:%3.2f\r\n",
+								IMU.Angle.x, IMU.Angle.y, IMU.Angle.z);
+						break;
+					//---------------------------------------------
+					//
+					case 5:
+						printf("L_Pulse:%ld, L_MMPS:%3.2f, , R_Pulse:%ld, R_MMPS:%3.2f\r\n",
+								Enc.Pulse.l, Enc.Speed.l, Enc.Pulse.r, Enc.Speed.r);
+						break;
+					//---------------------------------------------
+					//
+					case 6:
+						printf("Odometry: X:%3.2f, Y:%3.2f, Angle:%3.2f\r\n",
+								Enc.Position.x, Enc.Position.y, Enc.Position.angle);
+						break;
+					//---------------------------------------------
+					//
+					default:
+						printf(" ERROR - Press L Switch                                                          \r");
+						break;
+				}
+				HAL_Delay(1);
+				if( SW_Read_L() == SW_ON ){
+					HAL_Delay( SW_WAIT );
+					LED_Set_Confirm();
+					break;
+				}
+			}
+		}
+	}
+
+}
+
+//===============================================
+// Mode1 : Debug
+// 	submode:
+//		1: WallSen On to Off Time
+//		2: WallSen Off to On Time
+//		3: IMU Drift �J���r��
+
+//===============================================
+void mode1( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	while( 1 ){
+		int submode = Select_Number( 1, 14 );
+		if( submode == -1 ){
+			break;
+		}else{
+			switch( submode ){
+				//---------------------------------------------
+				// 1: �Z���T�l��ON->OFF���Ԃ̌v��
+				case 1:
+					LED_Start_Wait();
+					IMU_Calibrate();
+					// On����Off�̃Z���T�l���T���v�����O
+					WallSen.Debug_On2Off = true;
+					while(1){
+						if( WallSen.Debug_On2Off == false)
+							break;
+					}
+					// ���ʂ�\��( csv�`�� )
+					LED_Switch_Wait();
+					printf("FL, L, R, FR\r\n");
+					for( int i = 0; i < 128; i++ ){
+						printf("%d, %d, %d, %d\r\n", WallSen.Debug_Value[FL][i], WallSen.Debug_Value[L][i],
+								WallSen.Debug_Value[R][i], WallSen.Debug_Value[FR][i]);
+					}
+					LED_Set_Confirm();
+					break;
+				//---------------------------------------------
+				//�@2: �Z���T�l��OFF->ON���Ԃ̌v��
+				case 2:
+					LED_Start_Wait();
+					IMU_Calibrate();
+					// On����Off�̃Z���T�l���T���v�����O
+					WallSen.Debug_Off2On = true;
+					while(1){
+						if( WallSen.Debug_Off2On == false)
+							break;
+					}
+					// ���ʂ�\��( csv�`�� )
+					LED_Switch_Wait();
+					printf("FL, L, R, FR\r\n");
+					for( int i = 0; i < 128; i++ ){
+						printf("%d, %d, %d, %d\r\n", WallSen.Debug_Value[FL][i], WallSen.Debug_Value[L][i],
+								WallSen.Debug_Value[R][i], WallSen.Debug_Value[FR][i]);
+					}
+					LED_Set_Confirm();
+					break;
+				//---------------------------------------------
+				// 3: �h���t�g�ʂƍœK�ȃT���v�����O���Ԃ��m�F
+				case 3:
+					IMU_Debug_Drift();
+					break;
+				//---------------------------------------------
+				// 4: ���[�^�`�F�b�N
+				case 4:
+					MOT_Set_Duty( 200, 200 );
+					HAL_Delay( 2000 );
+					MOT_Set_Duty( 0, 0 );
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+
+					Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+					break;
+				//---------------------------------------------
+				// 5: ���i���W���[���EPID����
+				case 5:
+					Param_Load();
+					LED_Start_Wait();
+					IMU_Calibrate();
+					LED_Set_Confirm();
+
+					Log_Start();
+					Ctrl_SideWall.Use = true;
+					Move_Straight_Stop( Global_Straight.Dist.Full*11, Global_Straight.Speed.Normal, Global_Straight.Speed.Acc );
+					Log_Stop();
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Log_Print();
+
+
+					Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+					break;
+				//---------------------------------------------
+				// 6: ���ǃZ���T�̃T���v�����O
+				case 6:
+					Param_Load();
+					LED_Start_Wait();
+					IMU_Calibrate();
+					LED_Set_Confirm();
+
+					LED_Set_Confirm();
+					// ���J�o���[�ړ�
+					Ctrl_SideWall.Use = false;
+					Move_Straight_Stop(Global_Straight.Dist.Back, Global_Straight.Speed.Low * -1, Global_Straight.Speed.Acc);
+					IMU_Calibrate();
+					Move_Straight_Stop(Global_Straight.Dist.WalltoMiddle, Global_Straight.Speed.Low, Global_Straight.Speed.Acc);
+					Move_Slalom_Turn( &Global_T90, R_TURN ); Move_Stop();
+					Move_Straight_Stop(Global_Straight.Dist.Back, Global_Straight.Speed.Low * -1, Global_Straight.Speed.Acc);
+					Move_Straight_Stop(Global_Straight.Dist.WalltoMiddle, Global_Straight.Speed.Low, Global_Straight.Speed.Acc);
+					Move_Slalom_Turn( &Global_T90, L_TURN ); Move_Stop();
+
+
+					LED_Set_Confirm();
+					Log_Start();
+					Move_Slalom_Turn( &Global_T35, L_TURN ); Move_Stop();
+					Move_Slalom_Turn( &Global_T70, R_TURN ); Move_Stop();
+					Move_Slalom_Turn( &Global_T70, L_TURN ); Move_Stop();
+					Move_Slalom_Turn( &Global_T35, R_TURN ); Move_Stop();
+					Log_Stop();
+
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Log_Print();
+
+					Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+					break;
+
+				//---------------------------------------------
+				// 7: �O�ǃZ���T�̃T���v�����O
+				case 7:
+					Param_Load();
+					LED_Start_Wait();
+					IMU_Calibrate();
+					LED_Set_Confirm();
+
+					LED_Set_Confirm();
+
+					// ���J�o���[�ړ�
+					Ctrl_SideWall.Use = false;
+					Move_Straight_Stop(Global_Straight.Dist.Back, Global_Straight.Speed.Low * -1, Global_Straight.Speed.Acc);
+					Move_Straight_Stop(Global_Straight.Dist.WalltoMiddle, Global_Straight.Speed.Low, Global_Straight.Speed.Acc);
+					Move_Slalom_Turn( &Global_T90, R_TURN ); Move_Stop();
+					Move_Straight_Stop(Global_Straight.Dist.Back, Global_Straight.Speed.Low * -1, Global_Straight.Speed.Acc);
+					Move_Straight_Stop(Global_Straight.Dist.WalltoMiddle, Global_Straight.Speed.Low, Global_Straight.Speed.Acc);
+					Move_Slalom_Turn( &Global_T90, L_TURN ); Move_Stop();
+
+					Ctrl_SideWall.Use = false;
+					Move_Straight_Stop( 90, 120, 10);
+					HAL_Delay( 500 );
+
+					Ctrl_SideWall.Use = false;
+					Log_Start();
+					Move_Straight_Stop( 110, 120, 10 );
+					Log_Stop();
+
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Log_Print();
+
+					Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+					break;
+
+				//---------------------------------------------
+				// 8: �O�ǂ�
+				case 8:
+					Param_Load();
+					LED_Start_Wait();
+
+					while( 1 ){
+						Ctrl_FrontWall.Use = true;
+						Machine.Control = true;
+
+						if( SW_Read_R() == SW_ON ){
+							LED_Set_Confirm();
+							break;
+						}
+					}
+					Ctrl_FrontWall.Use = true;
+					Machine.Control = true;
+
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+					break;
+
+				//---------------------------------------------
+				// 9: �X�����[������
+				case 9:
+					Param_Load();
+					LED_Start_Wait();
+					IMU_Calibrate();
+					LED_Set_Confirm();
+
+					Move_Straight(Global_Straight.Dist.Start, Global_S90.Speed, Global_Straight.Speed.Acc);
+					Move_Straight(Global_S90.In_Offset, Global_S90.Speed, Global_Straight.Speed.Acc );
+
+					Log_Start();
+					Move_Slalom_Turn2( &Global_S90, R_TURN );
+					Log_Stop();
+
+					Move_Straight_Stop(Global_S90.Out_Offset, Global_S90.Speed, Global_Straight.Speed.Acc );
+
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Log_Print();
+
+					Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+					break;
+				//---------------------------------------------
+				// 10:�@���ǂ̕ǐ؂�
+				case 10:
+					Param_Load();
+					LED_Start_Wait();
+					IMU_Calibrate();
+					LED_Set_Confirm();
+
+					// ���J�o���[�ړ�
+					Ctrl_SideWall.Use = false;
+					Move_Straight_Stop(Global_Straight.Dist.Back, Global_Straight.Speed.Low * -1, Global_Straight.Speed.Acc);
+					Move_Straight_Stop(Global_Straight.Dist.WalltoMiddle, Global_Straight.Speed.Low, Global_Straight.Speed.Acc);
+					Move_Slalom_Turn( &Global_T90, R_TURN ); Move_Stop();
+					Move_Straight_Stop(Global_Straight.Dist.Back, Global_Straight.Speed.Low * -1, Global_Straight.Speed.Acc);
+					Move_Straight_Stop(Global_Straight.Dist.WalltoMiddle, Global_Straight.Speed.Low, Global_Straight.Speed.Acc);
+					Move_Slalom_Turn( &Global_T90, L_TURN ); Move_Stop();
+
+					Ctrl_SideWall.Use = false;
+					Move_Straight_Stop( 90, 100, 10);
+
+					Log_Start();
+					Move_Straight_Stop( Global_Straight.Dist.Full, 200, Global_Straight.Speed.Acc );
+					Log_Stop();
+
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Log_Print();
+
+					Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+					break;
+
+				case 11:
+					Param_Load();
+					LED_Start_Wait();
+					IMU_Calibrate();
+					LED_Set_Confirm();
+
+					Move_Straight_Stop( Global_Straight.Dist.Start, Global_Straight.Speed.Normal, Global_Straight.Speed.Acc );
+
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Log_Print();
+
+					Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+					break;
+
+				case 12:
+					Param_Load();
+					LED_Start_Wait();
+					IMU_Calibrate();
+					LED_Set_Confirm();
+
+					dia_course[0] = HALF_STR;
+					dia_course[1] = S45R;
+					dia_course[2] = S135L_RE;
+					dia_course[3] = GOAL;
+					dia_course[4] = HALF_STR;
+					dia_course[5] = GOAL;
+
+					mouse_dia_try();
+
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Log_Print();
+
+					break;
+
+				case 13:
+					Param_Load();
+					LED_Start_Wait();
+					IMU_Calibrate();
+					LED_Set_Confirm();
+
+					dia_course[0] = HALF_STR;
+					dia_course[1] = S45L;
+					dia_course[2] = DSTR;
+					dia_course[3] = DSTR;
+					dia_course[4] = GOAL;
+					mouse_dia_try();
+					Log_Stop();
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Log_Print();
+					break;
+
+				case 14:
+					Param_Load();
+					LED_Start_Wait();
+					IMU_Calibrate();
+					LED_Set_Confirm();
+
+					Log_Start();
+					Ctrl_SideWall.Use = true;
+					Log_Stop();
+
+					MOT_Set_Dir( FREE, FREE );								// ���[�^���t���[��Ԃɂ���
+					LED_Switch_Wait();
+					Log_Print();
+				default:
+					printf("\r\n----------------ERROR --------------\r\n No Such Mode\r\n");
+					break;
+			}
+		}
+	}
+
+}
+//===============================================
+// Mode2 : �T��
+//===============================================
+void mode2( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	// Menu 1: �p�����[�^�I��
+	Param_Load();
+	// Menu 2: �A��T���t���O�̑I��
+	int rtr_flg = Select_YesNo();
+
+
+
+	LED_Start_Wait();
+	IMU_Calibrate();
+
+	LED_Set_Confirm();
+	Machine.State.FailSafe = false;
+	head = 0;
+	pos_x = 0;
+	pos_y = 0;
+
+	mouse_search( GOAL_X, GOAL_Y, rtr_flg );
+	LED_Cleaning_Wait();
+}
+
+//===============================================
+// Mode3 : 2�����s
+//===============================================
+void mode3( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Param_Load();
+	Select_Map();
+
+	LED_Start_Wait();
+	IMU_Calibrate();
+
+	LED_Set_Confirm();
+
+	Machine.State.FailSafe = false;
+	mouse_try();
+	LED_Cleaning_Wait();
+
+}
+
+//===============================================
+// Mode4 :
+//===============================================
+void mode4( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Param_Load();
+	Select_Map();
+	make_wideturn_course();
+
+	for( int i = 0; i < 256; i++ ){
+		if(wideturn_course[i] == GOAL)
+			break;
+		printf("%d, ", wideturn_course[i]);
+	}
+	LED_Start_Wait();
+	IMU_Calibrate();
+
+	LED_Set_Confirm();
+
+	Machine.State.FailSafe = false;
+	mouse_wideturn_try();
+	LED_Cleaning_Wait();
+}
+
+//===============================================
+// Mode5 :
+//===============================================
+void mode5( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Param_Load();
+	Select_Map();
+	make_s45_course();
+
+	LED_Start_Wait();
+	IMU_Calibrate();
+
+	LED_Set_Confirm();
+
+	Machine.State.FailSafe = false;
+	mouse_s45_try();
+	LED_Cleaning_Wait();
+
+}
+
+//===============================================
+// Mode6 :
+//===============================================
+void mode6( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Param_Load();
+	Select_Map();
+	make_dia_course();
+
+	LED_Start_Wait();
+	IMU_Calibrate();
+
+	LED_Set_Confirm();
+
+	Machine.State.FailSafe = false;
+	mouse_dia_try();
+	LED_Cleaning_Wait();
+}
+
+//===============================================
+// Mode7 :
+//===============================================
+void mode7( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Param_Load();
+	Select_Map();
+	make_dia_course_noW90();
+
+	LED_Start_Wait();
+	IMU_Calibrate();
+
+	LED_Set_Confirm();
+
+	Machine.State.FailSafe = false;
+	mouse_dia_try();
+	LED_Cleaning_Wait();
+
+}
+
+//===============================================
+// Mode8 :
+//===============================================
+void mode8( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Param_Load();
+	Select_Map();
+	make_dia_course();
+
+	LED_Start_Wait();
+	IMU_Calibrate();
+
+	LED_Set_Confirm();
+
+	Machine.State.FailSafe = false;
+	mouse_dia_odo_try();
+	LED_Cleaning_Wait();
+}
+
+//===============================================
+// Mode9 :
+//===============================================
+void mode9( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+}
+
+//===============================================
+// Mode10 :
+//===============================================
+void mode10( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Select_Straight();
+}
+
+//===============================================
+// Mode11 :
+//===============================================
+void mode11( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	while( 1 ){
+		int submode = Select_Number( 1, 4 );
+		if( submode == -1 ){
+			break;
+		}else{
+			switch(submode){
+			case 1:
+				Select_Change_S45();
+				break;
+			case 2:
+				Select_Change_S135();
+				break;
+			case 3:
+				Select_Change_S45_RE();
+				break;
+			case 4:
+				Select_Change_S135_RE();
+				break;
+			default:
+				break;
+			}
+
+		}
+
+	}
+
+}
+
+//===============================================
+// Mode12 :
+//===============================================
+void mode12( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Select_Change_V90();
+}
+
+//===============================================
+// Mode13 :
+//===============================================
+void mode13( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Select_Change_W90();
+}
+
+//===============================================
+// Mode14 :
+//===============================================
+void mode14( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Select_Change_S90();
+}
+
+//===============================================
+// Mode15 :
+//===============================================
+void mode15( int x )
+{
+	// ���[�h�\��
+	if( x == DISP ){
+		LED_Disp_Binary( MODE );
+		HAL_Delay( 100 );
+		return;
+	}
+
+	// ���[�h���s
+	LED_Set_Confirm();
+	Buzzer_Set_Confirm();
+
+	Select_Goal();
+}
+
+//===============================================
+// �I��: ������I��
+//===============================================
+int Select_Number( int min, int max )
+{
+	int submode = min;
+	int submode_max = max;
+	while( 1 ){
+		LED_Disp_Binary( submode );
+		if( submode < 1 ) submode = submode_max;
+		else if( submode > submode_max ) submode = 1;
+
+		if( Enc.Pulse.l > 1000 || Enc.Pulse.r > 1000 ){
+			submode++;
+			Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+		}
+		else if( Enc.Pulse.l < -1000 || Enc.Pulse.r < -1000 ){
+			submode --;
+			Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+		}
+		else if( SW_Read_L() == SW_ON ){
+			HAL_Delay( SW_WAIT );
+			LED_Set_Confirm();
+			return -1;
+		}
+		else if( SW_Read_R() == SW_ON ){
+			HAL_Delay( SW_WAIT );
+			LED_Set_Confirm();
+			return submode;
+		}
+
+	}
+}
+
+//===============================================
+// �I��: YES(1)/NO(0)�I��
+//===============================================
+int Select_YesNo( void )
+{
+	int x = 0;
+	while(1)
+	{
+		if( x == 1 ){ LED4_OFF(); LED3_OFF(); LED1_ON(); LED2_ON(); }
+		else if( x == 0 ){ LED1_OFF(); LED2_OFF(); LED3_ON(); LED4_ON(); }
+
+		if( (Enc.Pulse.l > 1000 || Enc.Pulse.r > 1000) || (Enc.Pulse.l < -1000 || Enc.Pulse.r < -1000) ) {
+			if ( x == 1 ) x = 0;
+			else if( x == 0 ) x = 1;
+			Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+		}
+
+		if( SW_Read_R() == SW_ON ){
+			HAL_Delay( SW_WAIT );
+			LED_Set_Confirm();
+			Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+			break;
+		}
+	}
+
+	return x;
+}
+//===============================================
+// �I��: �}�b�v�̑I��
+//===============================================
+void Select_Map( void )
+{
+	if( map_id == 0 ){
+		loadFlash( course_start_address, (uint8_t*)map_course, sizeof(map_course));
+	}else if( map_id == 1 ){
+		make_course( GOAL_X, GOAL_Y );
+		writeFlash( course_start_address, (uint8_t*)map_course, sizeof(map_course));
+	}else{
+		uint8_t id = Select_Number( 1, map_id );
+		map_load_from( id-1 );
+		make_course( GOAL_X, GOAL_Y );
+		writeFlash( course_start_address, (uint8_t*)map_course, sizeof(map_course));
+		map_load_from( id-1 );
+	}
+}
+
+//===============================================
+// �I��: �S�[�����W��I��
+//===============================================
+void Select_Goal( void )
+{
+	int submode;
+
+	// Change GOAL _X
+	submode = GOAL_X;
+	while( 1 ){
+		LED_Disp_Binary( submode );
+		if( submode < 0 ) submode = 15;
+		else if( submode > 15 ) submode = 0;
+
+		if( Enc.Pulse.l > 1000 || Enc.Pulse.r > 1000 ){
+			submode++;
+			Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+		}
+		else if( Enc.Pulse.l < -1000 || Enc.Pulse.r < -1000 ){
+			submode --;
+			Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+		}
+		else if( SW_Read_R() == SW_ON ){
+			HAL_Delay( SW_WAIT );
+			LED_Set_Confirm();
+
+			GOAL_X = submode;
+			break;
+		}
+
+	}
+
+	// Change GOAL _Y
+	submode = GOAL_Y;
+	while( 1 ){
+		LED_Disp_Binary( submode );
+		if( submode < 0 ) submode = 15;
+		else if( submode > 15 ) submode = 0;
+
+		if( Enc.Pulse.l > 1000 || Enc.Pulse.r > 1000 ){
+			submode++;
+			Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+		}
+		else if( Enc.Pulse.l < -1000 || Enc.Pulse.r < -1000 ){
+			submode --;
+			Enc.Pulse.l = 0; Enc.Pulse.r = 0;
+		}
+		else if( SW_Read_R() == SW_ON ){
+			HAL_Delay( SW_WAIT );
+			LED_Set_Confirm();
+
+			GOAL_Y = submode;
+			break;
+		}
+
+	}
+
+	LED_Set_Confirm();
+}
+
+//===============================================
+// �I��: �X���̃I�t�Z�b�g�𒲐�
+//===============================================
+void Select_Change_S45_RE( void )
+{
+	//int param = Select_Number( 1, PARAM_MAX );
+	int in_out = Select_YesNo();
+	int plus_minus  = Select_YesNo();
+
+	int bias = Select_Number(1, 16);
+
+	// Out
+	if( in_out == 1 ){
+		if( plus_minus == 1){	// Plus
+			Global_RE_S45.Out_Offset += bias;
+		}else{
+			Global_RE_S45.Out_Offset -= bias;
+		}
+	}else{
+		if( plus_minus == 1){	// Plus
+			Global_RE_S45.In_Offset += bias;
+		}else{
+			Global_RE_S45.In_Offset -= bias;
+		}
+	}
+}
+
+//===============================================
+// �I��: �X���̃I�t�Z�b�g�𒲐�
+//===============================================
+void Select_Change_S135_RE( void )
+{
+	//int param = Select_Number( 1, PARAM_MAX );
+	int in_out = Select_YesNo();
+	int plus_minus  = Select_YesNo();
+
+	int bias = Select_Number(1, 16);
+
+	// Out
+	if( in_out == 1 ){
+		if( plus_minus == 1){	// Plus
+			Global_RE_S135.Out_Offset += bias;
+		}else{
+			Global_RE_S135.Out_Offset -= bias;
+		}
+	}else{
+		if( plus_minus == 1){	// Plus
+			Global_RE_S135.In_Offset += bias;
+		}else{
+			Global_RE_S135.In_Offset -= bias;
+		}
+	}
+}
+
+//===============================================
+// �I��: �X���̃I�t�Z�b�g�𒲐�
+//===============================================
+void Select_Change_S45( void )
+{
+	//int param = Select_Number( 1, PARAM_MAX );
+	int in_out = Select_YesNo();
+	int plus_minus  = Select_YesNo();
+
+	int bias = Select_Number(1, 16);
+
+	// Out
+	if( in_out == 1 ){
+		if( plus_minus == 1){	// Plus
+			Global_S45.Out_Offset += bias;
+		}else{
+			Global_S45.Out_Offset -= bias;
+		}
+	}else{
+		if( plus_minus == 1){	// Plus
+			Global_S45.In_Offset += bias;
+		}else{
+			Global_S45.In_Offset -= bias;
+		}
+	}
+}
+
+//===============================================
+// �I��: �X���̃I�t�Z�b�g�𒲐�
+//===============================================
+void Select_Change_S135( void )
+{
+	//int param = Select_Number( 1, PARAM_MAX );
+	int in_out = Select_YesNo();
+	int plus_minus  = Select_YesNo();
+
+	int bias = Select_Number(1, 16);
+
+	// Out
+	if( in_out == 1 ){
+		if( plus_minus == 1){	// Plus
+			Global_S135.Out_Offset += bias;
+		}else{
+			Global_S135.Out_Offset -= bias;
+		}
+	}else{
+		if( plus_minus == 1){	// Plus
+			Global_S135.In_Offset += bias;
+		}else{
+			Global_S135.In_Offset -= bias;
+		}
+	}
+}
+
+//===============================================
+// �I��: �X���̃I�t�Z�b�g�𒲐�
+//===============================================
+void Select_Change_V90( void )
+{
+	//int param = Select_Number( 1, PARAM_MAX );
+	int in_out = Select_YesNo();
+	int plus_minus  = Select_YesNo();
+
+	int bias = Select_Number(1, 16);
+
+	// Out
+	if( in_out == 1 ){
+		if( plus_minus == 1){	// Plus
+			Global_V90.Out_Offset += bias;
+		}else{
+			Global_V90.Out_Offset -= bias;
+		}
+	}else{
+		if( plus_minus == 1){	// Plus
+			Global_V90.In_Offset += bias;
+		}else{
+			Global_V90.In_Offset -= bias;
+		}
+	}
+}
+
+//===============================================
+// �I��: �X���̃I�t�Z�b�g�𒲐�
+//===============================================
+void Select_Change_W90( void )
+{
+	//int param = Select_Number( 1, PARAM_MAX );
+	int in_out = Select_YesNo();
+	int plus_minus  = Select_YesNo();
+
+	int bias = Select_Number(1, 16);
+
+	// Out
+	if( in_out == 1 ){
+		if( plus_minus == 1){	// Plus
+			Global_W90.Out_Offset += bias;
+		}else{
+			Global_W90.Out_Offset -= bias;
+		}
+	}else{
+		if( plus_minus == 1){	// Plus
+			Global_W90.In_Offset += bias;
+		}else{
+			Global_W90.In_Offset -= bias;
+		}
+	}
+}
+
+//===============================================
+// �I��: �X���̃I�t�Z�b�g�𒲐�
+//===============================================
+void Select_Change_S90( void )
+{
+	int param = Select_Number( 1, PARAM_MAX );
+	int in_out = Select_YesNo();
+	int plus_minus  = Select_YesNo();
+
+	int bias = Select_Number(1, 16);
+
+	// Out
+	if( in_out == 1 ){
+		if( plus_minus == 1){	// Plus
+			Param_S90[param].Out_Offset += bias;
+		}else{
+			Param_S90[param].Out_Offset -= bias;
+		}
+	}else{
+		if( plus_minus == 1){	// Plus
+			Param_S90[param].In_Offset += bias;
+		}else{
+			Param_S90[param].In_Offset -= bias;
+		}
+	}
+}
+
+//===============================================
+// �I��: �X���̃I�t�Z�b�g�𒲐�
+//===============================================
+void Select_Straight( void )
+{
+//	int plus_minus  = Select_YesNo();
+//
+//	int bias = Select_Number(1, 16);
+//
+//		if( plus_minus == 1){	// Plus
+//			Param_Straight.Dist.Full[0].Out_Offset += bias;
+//		}else{
+//			Param_Straight.Dist.Full[0].Out_Offset -= bias;
+//		}
+
+}
+
