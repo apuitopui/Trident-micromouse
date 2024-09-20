@@ -1,6 +1,6 @@
 # TRIDENT - Classic size micromouse
 Trident is a robotic project to compete in [classic size micromouse](https://www.ntf.or.jp/). 
-<img src="./image/trident_caption.png" alt="Trident" width="500"/>
+<img src="./image/trident_caption_white.png" alt="Trident" width="500"/>
 
 
 ## Circuit
@@ -24,7 +24,7 @@ Trident is a robotic project to compete in [classic size micromouse](https://www
 |Wall sensor Phototransistor| ST-1KL3A|
 
 ## Environment 
-* IDE : STM32Cube IDE
+* IDE : STM32 Cube IDE
 * EDA : Autodesk Eagle
 * CAD : Autodesk Fusion
 
